@@ -27,6 +27,7 @@ from torch_frame.data.mapper import (
     TensorMapper,
     TextTokenizationTensorMapper,
     TimestampTensorMapper,
+    MaskTensorMapper,
 )
 from torch_frame.data.multi_embedding_tensor import MultiEmbeddingTensor
 from torch_frame.data.multi_nested_tensor import MultiNestedTensor
@@ -39,6 +40,9 @@ from torch_frame.typing import (
     TensorData,
 )
 from torch_frame.utils.split import SPLIT_TO_NUM
+
+from icecream import ic
+import sys
 
 COL_TO_PATTERN_STYPE_MAPPING = {
     "col_to_sep": torch_frame.multicategorical,
@@ -214,6 +218,7 @@ class DataFrameToTensorFrameConverter:
         self.col_to_text_embedder_cfg = col_to_text_embedder_cfg
         self.col_to_text_tokenizer_cfg = col_to_text_tokenizer_cfg
         self.col_to_image_embedder_cfg = col_to_image_embedder_cfg
+        self.cat_dict = dict()
 
     @property
     def col_names_dict(self) -> dict[torch_frame.stype, list[str]]:
@@ -255,6 +260,8 @@ class DataFrameToTensorFrameConverter:
             return NumericalSequenceTensorMapper()
         elif stype == torch_frame.embedding:
             return EmbeddingTensorMapper()
+        elif stype == torch_frame.mask:
+            return MaskTensorMapper(self.cat_dict, list(self.col_stats.keys()))
         else:
             raise NotImplementedError(f"Unable to process the semantic "
                                       f"type '{stype.value}'")
@@ -295,11 +302,14 @@ class DataFrameToTensorFrameConverter:
         object.
         """
         xs_dict: dict[torch_frame.stype, list[TensorData]] = defaultdict(list)
-
         for stype, col_names in self.col_names_dict.items():
-            for col in col_names:
-                out = self._get_mapper(col).forward(df[col], device=device)
-                xs_dict[stype].append(out)
+            if stype != torch_frame.mask:
+                for col in col_names:
+                    mapper = self._get_mapper(col)
+                    if stype == torch_frame.categorical:
+                        self.cat_dict[col] = mapper.categories
+                    out = mapper.forward(df[col], device=device)
+                    xs_dict[stype].append(out)
 
         feat_dict = {}
         for stype, xs in xs_dict.items():
@@ -317,8 +327,12 @@ class DataFrameToTensorFrameConverter:
 
         y: Tensor | None = None
         if self.target_col is not None and self.target_col in df:
-            y = self._get_mapper(self.target_col).forward(
-                df[self.target_col], device=device)
+            if self.col_to_stype[self.target_col] == torch_frame.mask:
+                y = self._get_mapper(self.target_col).forward(
+                    df[self.target_col], device=device)
+            else:
+                y = self._get_mapper(self.target_col).forward(
+                    df[self.target_col], device=device)
 
         tf = TensorFrame(feat_dict, self.col_names_dict, y)
         return self._merge_feat(tf)
@@ -527,6 +541,8 @@ class Dataset(ABC):
                 return TaskType.MULTICLASS_CLASSIFICATION
         elif self.col_to_stype[self.target_col] == torch_frame.numerical:
             return TaskType.REGRESSION
+        elif self.col_to_stype[self.target_col] == torch_frame.mask:
+            return TaskType.SELF_SUPERVISED
         else:
             raise ValueError("Task type cannot be inferred.")
 

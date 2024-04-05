@@ -10,6 +10,7 @@ from ._stype import (
     timestamp,
     image_embedded,
     embedding,
+    mask,
 )
 from .data import TensorFrame
 from .typing import TaskType, Metric, DataFrame, NAStrategy
@@ -33,6 +34,7 @@ __all__ = [
     'timestamp',
     'image_embedded',
     'embedding',
+    'mask',
     'TaskType',
     'Metric',
     'NAStrategy',

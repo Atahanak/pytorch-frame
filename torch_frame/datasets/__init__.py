@@ -18,6 +18,7 @@ from .mercari import Mercari
 from .amazon_fine_food_reviews import AmazonFineFoodReviews
 from .diamond_images import DiamondImages
 from .huggingface_dataset import HuggingFaceDatasetDict
+from .ibm_transactions_for_aml import IBMTransactionsAML
 
 real_world_datasets = [
     'Titanic',
@@ -36,6 +37,7 @@ real_world_datasets = [
     'Mercari',
     'AmazonFineFoodReviews',
     'DiamondImages',
+    'IBMTransactionsAML',
 ]
 
 synthetic_datasets = [

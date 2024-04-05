@@ -57,6 +57,36 @@ class TensorMapper(ABC):
         """
         raise NotImplementedError
 
+class MaskTensorMapper(TensorMapper):
+    r"""HACK for now"""
+    def __init__(self, cat_to_idx: dict, col_names: list):
+        super().__init__()
+        self.cat_to_idx = cat_to_idx
+        self.col_names = col_names
+
+    def forward(
+        self,
+        ser: Series,
+        *,
+        device: torch.device | None = None,
+    ) -> Tensor:
+        # change each element of the series to 1
+        # from icecream import ic
+        # ic(ser.head(5))
+        # import sys
+        def map_mask_indices(row):
+            value = row[0]
+            col_name = row[1]
+            if col_name in self.cat_to_idx:
+                row[0] = self.cat_to_idx[col_name][value]
+            row[1] = self.col_names.index(col_name)
+            return row
+        ser = ser.apply(map_mask_indices)
+        # ic(ser.head(5))
+        return torch.tensor(ser, device=device)
+
+    def backward(self, tensor: Tensor) -> pd.Series:
+        return pd.Series(tensor.detach().cpu().numpy())
 
 class NumericalTensorMapper(TensorMapper):
     r"""Maps any numerical series into a floating-point representation, with

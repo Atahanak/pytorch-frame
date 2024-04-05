@@ -40,6 +40,7 @@ class TaskType(Enum):
     MULTICLASS_CLASSIFICATION = 'multiclass_classification'
     BINARY_CLASSIFICATION = 'binary_classification'
     MULTILABEL_CLASSIFICATION = 'multilabel_classification'
+    SELF_SUPERVISED = 'self_supervised'
 
     @property
     def is_classification(self) -> bool:
