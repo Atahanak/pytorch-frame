@@ -261,7 +261,8 @@ class DataFrameToTensorFrameConverter:
         elif stype == torch_frame.embedding:
             return EmbeddingTensorMapper()
         elif stype == torch_frame.mask:
-            return MaskTensorMapper(self.cat_dict, list(self.col_stats.keys()))
+            ic(list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical]))
+            return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical]))
         else:
             raise NotImplementedError(f"Unable to process the semantic "
                                       f"type '{stype.value}'")
