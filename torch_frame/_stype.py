@@ -37,6 +37,7 @@ class stype(Enum):
     image_embedded = 'image_embedded'
     embedding = 'embedding'
     mask = 'mask'
+    relation = 'relation'
 
     @property
     def is_text_stype(self) -> bool:
@@ -107,3 +108,4 @@ timestamp = stype('timestamp')
 image_embedded = stype('image_embedded')
 embedding = stype('embedding')
 mask = stype('mask')
+relation = stype('relation')

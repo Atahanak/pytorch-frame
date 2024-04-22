@@ -28,6 +28,7 @@ from torch_frame.data.mapper import (
     TextTokenizationTensorMapper,
     TimestampTensorMapper,
     MaskTensorMapper,
+    RelationTensorMapper
 )
 from torch_frame.data.multi_embedding_tensor import MultiEmbeddingTensor
 from torch_frame.data.multi_nested_tensor import MultiNestedTensor
@@ -261,8 +262,9 @@ class DataFrameToTensorFrameConverter:
         elif stype == torch_frame.embedding:
             return EmbeddingTensorMapper()
         elif stype == torch_frame.mask:
-            ic(list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical]))
             return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical]))
+        elif stype == torch_frame.relation:
+            return RelationTensorMapper()
         else:
             raise NotImplementedError(f"Unable to process the semantic "
                                       f"type '{stype.value}'")

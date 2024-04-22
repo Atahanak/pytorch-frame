@@ -11,6 +11,7 @@ from ._stype import (
     image_embedded,
     embedding,
     mask,
+    relation,
 )
 from .data import TensorFrame
 from .typing import TaskType, Metric, DataFrame, NAStrategy
@@ -35,6 +36,7 @@ __all__ = [
     'image_embedded',
     'embedding',
     'mask',
+    'relation',
     'TaskType',
     'Metric',
     'NAStrategy',

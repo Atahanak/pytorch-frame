@@ -70,10 +70,6 @@ class MaskTensorMapper(TensorMapper):
         *,
         device: torch.device | None = None,
     ) -> Tensor:
-        # change each element of the series to 1
-        # from icecream import ic
-        # ic(ser.head(5))
-        # import sys
         def map_mask_indices(row):
             value = row[0]
             col_name = row[1]
@@ -105,6 +101,20 @@ class NumericalTensorMapper(TensorMapper):
     def backward(self, tensor: Tensor) -> pd.Series:
         return pd.Series(tensor.detach().cpu().numpy())
 
+class RelationTensorMapper(TensorMapper):
+    r"""
+    """
+    def forward(
+        self,
+        ser: Series,
+        *,
+        device: torch.device | None = None,
+    ) -> Tensor:
+        # convert series to torch tensor
+        return torch.tensor(ser, device=device)
+
+    def backward(self, tensor: Tensor) -> pd.Series:
+        return pd.Series(tensor.detach().cpu().numpy())
 
 class CategoricalTensorMapper(TensorMapper):
     r"""Maps any categorical series into an index representation, with
