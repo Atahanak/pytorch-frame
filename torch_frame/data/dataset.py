@@ -28,7 +28,7 @@ from torch_frame.data.mapper import (
     TextTokenizationTensorMapper,
     TimestampTensorMapper,
     MaskTensorMapper,
-    RelationTensorMapper
+    RelationTensorMapper, MaskVectorTensorMapper
 )
 from torch_frame.data.multi_embedding_tensor import MultiEmbeddingTensor
 from torch_frame.data.multi_nested_tensor import MultiNestedTensor
@@ -263,6 +263,8 @@ class DataFrameToTensorFrameConverter:
             return EmbeddingTensorMapper()
         elif stype == torch_frame.mask:
             return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical]))
+        elif stype == torch_frame.mask_vector:
+            return MaskVectorTensorMapper(self.cat_dict, list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical]))
         elif stype == torch_frame.relation:
             return RelationTensorMapper()
         else:
