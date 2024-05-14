@@ -37,6 +37,7 @@ class stype(Enum):
     image_embedded = 'image_embedded'
     embedding = 'embedding'
     mask = 'mask'
+    mask_vector = 'mask_vector'
     relation = 'relation'
 
     @property
@@ -108,4 +109,5 @@ timestamp = stype('timestamp')
 image_embedded = stype('image_embedded')
 embedding = stype('embedding')
 mask = stype('mask')
+mask_vector = stype('mask_vector')
 relation = stype('relation')

@@ -84,6 +84,41 @@ class MaskTensorMapper(TensorMapper):
     def backward(self, tensor: Tensor) -> pd.Series:
         return pd.Series(tensor.detach().cpu().numpy())
 
+
+class MaskVectorTensorMapper(TensorMapper):
+    r"""HACK for now"""
+    def __init__(self, cat_to_idx: dict, col_names: list):
+        super().__init__()
+        self.cat_to_idx = cat_to_idx
+        self.col_names = col_names
+
+    def forward(
+        self,
+        ser: Series,
+        *,
+        device: torch.device | None = None,
+    ) -> Tensor:
+        def map_mask_vector_indices(mask):
+            # 1. Create the mask vector from the list of columns modified
+            modified_columns = {row[1] for row in mask}
+            mask_vector = [1 if col in modified_columns else 0 for col in self.col_names]
+
+            # 2. Create the vector of old values, where unmodified values are np.nan
+            values = [np.nan] * len(self.col_names)
+            for value, col_name in mask:
+                v = value
+                if col_name in self.cat_to_idx:
+                    v = self.cat_to_idx[col_name][value]
+                values[self.col_names.index(col_name)] = v
+            return [values, mask_vector]
+
+        ser = ser.apply(map_mask_vector_indices)
+        return torch.tensor(ser, device=device)
+
+    def backward(self, tensor: Tensor) -> pd.Series:
+        return pd.Series(tensor.detach().cpu().numpy())
+
+
 class NumericalTensorMapper(TensorMapper):
     r"""Maps any numerical series into a floating-point representation, with
     :obj:`float('NaN')` denoting N/A values.
