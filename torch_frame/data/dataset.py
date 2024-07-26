@@ -262,7 +262,12 @@ class DataFrameToTensorFrameConverter:
         elif stype == torch_frame.embedding:
             return EmbeddingTensorMapper()
         elif stype == torch_frame.mask:
-            return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical]))
+            if stype.categorical not in self._col_names_dict:
+                return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.numerical]))
+            elif stype.numerical not in self._col_names_dict:
+                return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.categorical]))
+            else:
+                return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical]))
         elif stype == torch_frame.relation:
             return RelationTensorMapper()
         else:

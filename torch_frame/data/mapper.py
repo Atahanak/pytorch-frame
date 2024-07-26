@@ -78,8 +78,7 @@ class MaskTensorMapper(TensorMapper):
             row[1] = self.col_names.index(col_name)
             return row
         ser = ser.apply(map_mask_indices)
-        # ic(ser.head(5))
-        return torch.tensor(ser, device=device)
+        return torch.tensor(np.array(ser.tolist()), device=device)
 
     def backward(self, tensor: Tensor) -> pd.Series:
         return pd.Series(tensor.detach().cpu().numpy())
