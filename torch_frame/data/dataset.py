@@ -196,10 +196,12 @@ class DataFrameToTensorFrameConverter:
         col_to_image_embedder_cfg: dict[str, ImageEmbedderConfig]
         | None = None,
         col_to_time_format: dict[str, str | None] = None,
+        maskable_cols: list[str] = None,
     ):
         self.col_to_stype = col_to_stype
         self.col_stats = col_stats
         self.target_col = target_col
+        self.maskable_cols = maskable_cols
 
         # Pre-compute a canonical `col_names_dict` for tensor frame.
         self._col_names_dict: dict[torch_frame.stype, list[str]] = {}
@@ -262,12 +264,10 @@ class DataFrameToTensorFrameConverter:
         elif stype == torch_frame.embedding:
             return EmbeddingTensorMapper()
         elif stype == torch_frame.mask:
-            if stype.categorical not in self._col_names_dict:
-                return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.numerical]))
-            elif stype.numerical not in self._col_names_dict:
-                return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.categorical]))
-            else:
-                return MaskTensorMapper(self.cat_dict, list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical]))
+            all = list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical])
+            # remove non maskable columns without disturbing the order
+            col_names = [col for col in all if col in self.maskable_cols]
+            return MaskTensorMapper(self.cat_dict, col_names)
         elif stype == torch_frame.relation:
             return RelationTensorMapper()
         else:
@@ -404,9 +404,11 @@ class Dataset(ABC):
         col_to_image_embedder_cfg: dict[str, ImageEmbedderConfig]
         | ImageEmbedderConfig | None = None,
         col_to_time_format: str | None | dict[str, str | None] = None,
+        maskable_columns: list[str] | None = None,
     ):
         self.df = df
         self.target_col = target_col
+        self.maskable_columns = maskable_columns
 
         if split_col is not None:
             if split_col not in df.columns:
@@ -657,6 +659,7 @@ class Dataset(ABC):
             col_to_text_tokenizer_cfg=self.col_to_text_tokenizer_cfg,
             col_to_image_embedder_cfg=self.col_to_image_embedder_cfg,
             col_to_time_format=self.col_to_time_format,
+            maskable_cols=self.maskable_columns,
         )
 
     def _update_col_stats(self):
