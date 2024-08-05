@@ -6,8 +6,10 @@ import os.path as osp
 from abc import ABC
 from collections import defaultdict
 from typing import Any, Dict
+from collections import Counter
 
 import pandas as pd
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -264,7 +266,7 @@ class DataFrameToTensorFrameConverter:
         elif stype == torch_frame.embedding:
             return EmbeddingTensorMapper()
         elif stype == torch_frame.mask:
-            all = list(self._col_names_dict[stype.numerical]) + list(self._col_names_dict[stype.categorical])
+            all = (list(self._col_names_dict[stype.numerical]) if stype.numerical in self._col_names_dict else []) + (list(self._col_names_dict[stype.categorical]) if stype.categorical in self._col_names_dict else [])
             # remove non maskable columns without disturbing the order
             col_names = [col for col in all if col in self.maskable_cols]
             return MaskTensorMapper(self.cat_dict, col_names)
@@ -576,6 +578,74 @@ class Dataset(ABC):
 
     # Materialization #########################################################
 
+    def apply_mask(self: torch_frame.data.Dataset) -> dict[str, torch_frame.stype]:
+        
+        # Prepare values for imputation and removal upfront
+        distributions_cat = {}
+        distributions_num = {}
+        avg_per_num_col = {}
+        
+        if self.mask_type != "remove":
+            for col in self.cat_columns:
+                counter = Counter(self.df[col])
+                total = sum(counter.values())
+                distributions_cat[col] = {k: v / total for k, v in counter.items()}
+            
+            distributions_num = {col: (self.df[col].mean(), self.df[col].std()) for col in self.num_columns}
+        
+        if self.mask_type != "replace":
+            avg_per_num_col = {col: self.df[col].mean() for col in self.num_columns}
+        
+        if self.mask_type == "remove":
+            self.mask_remove(avg_per_num_col)
+        elif self.mask_type == "replace":
+            self.mask_replace(distributions_cat, distributions_num)
+        elif self.mask_type == "bert":
+            self.mask_bert(avg_per_num_col, distributions_cat, distributions_num)
+        self.df.drop('maskable_column', axis=1)
+
+    def mask_remove(self, avg_per_num_col):
+        for col in avg_per_num_col:
+            mask = self.df['maskable_column'] == col
+            self.df.loc[mask, col] = avg_per_num_col[col]
+        
+        cat_mask = ~self.df['maskable_column'].isin(avg_per_num_col)
+        self.df.loc[cat_mask, self.df.loc[cat_mask, 'maskable_column']] = '[MASK]'
+
+    def mask_replace(self, distributions_cat, distributions_num):
+        for col in self.cat_columns:
+            mask = self.df['maskable_column'] == col
+            if mask.any():
+                values = list(distributions_cat[col].keys())
+                probs = list(distributions_cat[col].values())
+                original_values = self.df.loc[mask, col].values
+                
+                def adjust_probs(orig_value):
+                    p_original = distributions_cat[col][orig_value]
+
+                    adj = [p + (p_original/(len(values)-1)) if (values[i] != orig_value) else 0
+                            for i, p in enumerate(probs)]
+                    return adj
+                
+                adjusted_probs = [adjust_probs(ov) for ov in original_values]
+                replacements = [np.random.choice(values, p=p) for p in adjusted_probs]
+                
+                self.df.loc[mask, col] = replacements
+
+        for col in self.num_columns:
+            mask = self.df['maskable_column'] == col
+            if mask.any():
+                mean, std = distributions_num[col]
+                self.df.loc[mask, col] = np.random.normal(mean, std, size=mask.sum())
+
+    def mask_bert(self, avg_per_num_col, distributions_cat, distributions_num):
+        probs = np.random.rand(len(self.df))
+        remove_mask = probs < 0.8
+        replace_mask = (probs >= 0.8) & (probs < 0.9)
+        
+        self.df.loc[remove_mask] = self.mask_remove(self.df.loc[remove_mask], avg_per_num_col)
+        self.df.loc[replace_mask] = self.mask_replace(self.df.loc[replace_mask], distributions_cat, distributions_num)
+
     def materialize(
         self,
         device: torch.device | None = None,
@@ -632,6 +702,10 @@ class Dataset(ABC):
                     ser = pd.Series(index=index, data=value).sort_index()
                     index, value = ser.index.tolist(), ser.values.tolist()
                     self._col_stats[col][StatType.COUNT] = (index, value)
+
+        # 1.1 MASK if maskable columns are specified
+        if self.maskable_columns is not None:
+            self.apply_mask()
 
         # 2. Create the `TensorFrame`:
         self._to_tensor_frame_converter = self._get_tensorframe_converter()
