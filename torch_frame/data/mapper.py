@@ -110,7 +110,7 @@ class RelationTensorMapper(TensorMapper):
         device: torch.device | None = None,
     ) -> Tensor:
         # convert series to torch tensor
-        return torch.tensor(ser, device=device)
+        return torch.tensor(ser, device=device).float()
 
     def backward(self, tensor: Tensor) -> pd.Series:
         return pd.Series(tensor.detach().cpu().numpy())

@@ -13,6 +13,7 @@ from .stype_encoder import (
     LinearModelEncoder,
     StackEncoder,
     TimestampEncoder,
+    ProjectionEncoder,
 )
 
 __all__ = classes = [
@@ -29,4 +30,5 @@ __all__ = classes = [
     'LinearModelEncoder',
     'StackEncoder',
     'TimestampEncoder',
+    'ProjectionEncoder',
 ]
