@@ -586,16 +586,15 @@ class Dataset(ABC):
         avg_per_num_col = {}
         
         if self.mask_type != "remove":
-            for col in self.cat_columns:
+            for col in self.masked_categorical_columns:
                 counter = Counter(self.df[col])
                 total = sum(counter.values())
                 distributions_cat[col] = {k: v / total for k, v in counter.items()}
             
-            distributions_num = {col: (self.df[col].mean(), self.df[col].std()) for col in self.num_columns}
+            distributions_num = {col: (self.df[col].mean(), self.df[col].std()) for col in self.masked_numerical_columns}
         
         if self.mask_type != "replace":
-            avg_per_num_col = {col: self.df[col].mean() for col in self.num_columns}
-        print('dist and average calculated')
+            avg_per_num_col = {col: self.df[col].mean() for col in self.masked_numerical_columns}
         
         if self.mask_type == "remove":
             self.mask_remove(avg_per_num_col)
@@ -614,8 +613,7 @@ class Dataset(ABC):
         self.df.loc[cat_mask, self.df.loc[cat_mask, 'maskable_column']] = '[MASK]'
 
     def mask_replace(self, distributions_cat, distributions_num):
-        for col in self.cat_columns:
-            print('Masking column:', col)
+        for col in self.masked_categorical_columns:
             mask = self.df['maskable_column'] == col
             if mask.any():
                 values = np.array(list(distributions_cat[col].keys()))
@@ -642,15 +640,12 @@ class Dataset(ABC):
 
                 
                 self.df.loc[mask, col] = replacements
-        print('Categorical columns masked')
 
-        for col in self.num_columns:
-            print('Masking column:', col)
+        for col in self.masked_numerical_columns:
             mask = self.df['maskable_column'] == col
             if mask.any():
                 mean, std = distributions_num[col]
                 self.df.loc[mask, col] = np.random.normal(mean, std, size=mask.sum())
-        print('Numerical columns masked')
 
     def mask_bert(self, avg_per_num_col, distributions_cat, distributions_num):
         probs = np.random.rand(len(self.df))
@@ -720,12 +715,10 @@ class Dataset(ABC):
         # 1.1 MASK if maskable columns are specified
         if self.maskable_columns is not None:
             self.apply_mask()
-        print('Masked applied')
 
         # 2. Create the `TensorFrame`:
         self._to_tensor_frame_converter = self._get_tensorframe_converter()
         self._tensor_frame = self._to_tensor_frame_converter(self.df, device)
-        print('Tensor frame created')
 
         # 3. Update col stats based on `TensorFrame`
         self._update_col_stats()
